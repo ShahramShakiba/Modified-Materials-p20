@@ -60,9 +60,22 @@ const material = new THREE.MeshStandardMaterial({
   normalMap: normalTexture,
 });
 
+//== Hook the material compilation
+material.onBeforeCompile = (shader) => {
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    `
+        #include <begin_vertex>
+
+        transformed.y += 1.0;
+    `
+  );
+};
+
 //=== Models
 gltfLoader.load('/models/LeePerrySmith/LeePerrySmith.glb', (gltf) => {
   const mesh = gltf.scene.children[0];
+
   mesh.rotation.y = Math.PI * 0.5;
   mesh.material = material;
   scene.add(mesh);
@@ -130,3 +143,14 @@ const tick = () => {
 };
 
 tick();
+
+/* ************ onBeforeCompile
+- it'll be call automatically by Three.js before the material gets compiled.
+
+? node_modules-three-src-renderers-shaders-shaderLib = meshPhysical.glsl.js
+? node_modules-three-src-renderers-shaders-shaderChunk = begin_vertex.glsl.js
+
+* begin_vertex.glsl.js
+- we are going to inject our code here
+- is handling the position first by creating a variable named "transformed"
+*/
