@@ -252,6 +252,8 @@ tick();
 * Create a matrix to calculate the rotation, helping "get2dRotateMatrix" in <common> file
     float angle = 0.3;
     mat2 rotateMatrix = get2dRotateMatrix(angle);
+
+    - matrices(plural of matrix) can be used to apply transformation on vertices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
