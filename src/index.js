@@ -62,12 +62,28 @@ const material = new THREE.MeshStandardMaterial({
 
 //== Hook the material compilation
 material.onBeforeCompile = (shader) => {
+  // define mat2 outside "main" fn ↓
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <common>',
+    `
+        #include <common>
+
+        mat2 get2dRotateMatrix(float _angle) {
+            return mat2(cos(_angle), -sin(_angle), sin(_angle), cos(_angle));
+        }
+    `
+  );
+
+  // it's like we write our code inside the "main" fn
   shader.vertexShader = shader.vertexShader.replace(
     '#include <begin_vertex>',
     `
         #include <begin_vertex>
 
-        transformed.y += 1.0;
+        float angle = position.y * 0.9;
+        mat2 rotateMatrix = get2dRotateMatrix(angle);
+
+        transformed.xz = rotateMatrix * transformed.xz;
     `
   );
 };
@@ -151,6 +167,34 @@ tick();
 ? node_modules-three-src-renderers-shaders-shaderChunk = begin_vertex.glsl.js
 
 * begin_vertex.glsl.js
+- this part of code is located in "meshPhysical.glsl.js" inside of "main" fn and also it has dedicated file with this name as well
+
 - we are going to inject our code here
 - is handling the position first by creating a variable named "transformed"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+* #include <common>
+- we can inject the "get2dRotateMatrix" function here
+- mat2 is a function to help calculate the rotation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+* Create a matrix to calculate the rotation, helping "get2dRotateMatrix" in <common> file
+    float angle = 0.3;
+    mat2 rotateMatrix = get2dRotateMatrix(angle);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+* Transform or rotate the Obj
+    transformed.xz = rotateMatrix * transformed.xz;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+* change the "angle" depend on "elevation" | just change :
+        float angle = position.y * 0.9;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 */
