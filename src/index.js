@@ -69,11 +69,11 @@ const customUniform = {
   uTime: { value: 0 },
 };
 
-//== Hook the material compilation | GLSL Code
+//== Hook the Material & Core-Shadow compilation | GLSL Code
 material.onBeforeCompile = (shader) => {
   shader.uniforms.uTime = customUniform.uTime;
 
-  // define outside "void main" function ↓
+  // handling rotation calculation ↓01
   shader.vertexShader = shader.vertexShader.replace(
     '#include <common>',
     `
@@ -87,14 +87,24 @@ material.onBeforeCompile = (shader) => {
     `
   );
 
-  // it's like we write our code inside the " void main" function
+  // handling core-shadow animation
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <beginnormal_vertex>',
+    `
+        #include <beginnormal_vertex>
+
+        float angle = (position.y + uTime) * 0.9;
+        mat2 rotateMatrix = get2dRotateMatrix(angle);
+
+        objectNormal.xz = rotateMatrix * objectNormal.xz;
+    `
+  );
+
+  // handling model rotation
   shader.vertexShader = shader.vertexShader.replace(
     '#include <begin_vertex>',
     `
         #include <begin_vertex>
-
-        float angle = (position.y + uTime) * 0.9;
-        mat2 rotateMatrix = get2dRotateMatrix(angle);
 
         transformed.xz = rotateMatrix * transformed.xz;
     `
@@ -222,7 +232,9 @@ tick();
 ? node_modules-three-src-renderers-shaders-shaderLib = meshPhysical.glsl.js
 ? node_modules-three-src-renderers-shaders-shaderChunk = begin_vertex.glsl.js
 
-* begin_vertex.glsl.js
+* begin_vertex.glsl.js 
+- it's like we write our code inside the " void main" function
+
 - this part of code is located in "meshPhysical.glsl.js" inside of "main" fn and also it has dedicated file with this name as well
 
 - we are going to inject our code here
@@ -230,7 +242,8 @@ tick();
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-* #include <common>
+* #include <common> - 01
+- it's like we define outside "void main" function
 - we can inject the "get2dRotateMatrix" function here
 - mat2 is a function to help calculate the rotation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -263,4 +276,20 @@ tick();
     That kind of material doesn't twist
 
     - and so far as you can see our material is twisting but the shadow map material is not
+
+
+we have two type of shadows: 
+1. Core Shadow | Normals
+2. Drop Shadow | DepthMaterial
+
+- to fix the shadow of the model it's the "Normal" problem to fix
+    * Normals are data associated with the vertices that tell in which direction is the outside to be used for lights, shadows, reflection and stuff like that 
+
+
+1. Core Shadow :
+? node_modules-three-src-renderers-shaders-shaderChunk = beginnormal_vertex.glsl.js
+
+    - there's an objectNormal variable
+    - and we can animation on that to fix the shadow
+
 */
