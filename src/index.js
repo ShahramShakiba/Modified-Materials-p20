@@ -60,6 +60,11 @@ const material = new THREE.MeshStandardMaterial({
   normalMap: normalTexture,
 });
 
+//=== Handle the Drop-shadow
+const depthMaterial = new THREE.MeshDepthMaterial({
+  depthPacking: THREE.RGBADepthPacking,
+});
+
 const customUniform = {
   uTime: { value: 0 },
 };
@@ -96,16 +101,57 @@ material.onBeforeCompile = (shader) => {
   );
 };
 
+//== Hook the Drop-Shadow compilation 
+depthMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = customUniform.uTime;
+
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <common>',
+    `
+        #include <common>
+
+        uniform float uTime;
+
+        mat2 get2dRotateMatrix(float _angle) {
+            return mat2(cos(_angle), -sin(_angle), sin(_angle), cos(_angle));
+        }
+    `
+  );
+
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    `
+        #include <begin_vertex>
+
+        float angle = (position.y + uTime) * 0.9;
+        mat2 rotateMatrix = get2dRotateMatrix(angle);
+
+        transformed.xz = rotateMatrix * transformed.xz;
+    `
+  );
+};
+
 //=== Models
 gltfLoader.load('/models/LeePerrySmith/LeePerrySmith.glb', (gltf) => {
   const mesh = gltf.scene.children[0];
 
   mesh.rotation.y = Math.PI * 0.5;
   mesh.material = material;
+  mesh.customDepthMaterial = depthMaterial;
   scene.add(mesh);
 
   updateAllMaterials();
 });
+
+//================= Plane ======================
+const plane = new THREE.Mesh(
+  new THREE.PlaneGeometry(15, 15, 15),
+  new THREE.MeshStandardMaterial()
+);
+plane.rotation.y = Math.PI;
+plane.position.y = -4;
+plane.position.z = 6;
+scene.add(plane);
 
 //================ Lights ======================
 const directionalLight = new THREE.DirectionalLight('#ffffff', 3);
@@ -118,7 +164,7 @@ scene.add(directionalLight);
 
 //================ Camera ======================
 const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 100);
-camera.position.set(4, 1, -4);
+camera.position.set(10, 1, -8);
 scene.add(camera);
 
 //============ Orbit Controls ==================
@@ -207,4 +253,14 @@ tick();
         float angle = position.y * 0.9;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+* Shadow map 
+    to handle shadows, Three.js do renders from the lights point of view called shadow maps. 
+    ? let's say when we have directionalLight, before each render three.js wil put camera at the place of directionalLight and do a render of our scene in order to know what the light can see and it'll create a render called "Shadow map" which it'll be used either to put shadows on the materials or not 
+
+    when those renders occur, all the materials are replaced by another set of materials called "depthMaterial"
+
+    That kind of material doesn't twist
+
+    - and so far as you can see our material is twisting but the shadow map material is not
 */
