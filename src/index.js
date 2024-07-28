@@ -60,13 +60,21 @@ const material = new THREE.MeshStandardMaterial({
   normalMap: normalTexture,
 });
 
-//== Hook the material compilation
+const customUniform = {
+  uTime: { value: 0 },
+};
+
+//== Hook the material compilation | GLSL Code
 material.onBeforeCompile = (shader) => {
-  // define mat2 outside "main" fn ↓
+  shader.uniforms.uTime = customUniform.uTime;
+
+  // define outside "void main" function ↓
   shader.vertexShader = shader.vertexShader.replace(
     '#include <common>',
     `
         #include <common>
+
+        uniform float uTime;
 
         mat2 get2dRotateMatrix(float _angle) {
             return mat2(cos(_angle), -sin(_angle), sin(_angle), cos(_angle));
@@ -74,13 +82,13 @@ material.onBeforeCompile = (shader) => {
     `
   );
 
-  // it's like we write our code inside the "main" fn
+  // it's like we write our code inside the " void main" function
   shader.vertexShader = shader.vertexShader.replace(
     '#include <begin_vertex>',
     `
         #include <begin_vertex>
 
-        float angle = position.y * 0.9;
+        float angle = (position.y + uTime) * 0.9;
         mat2 rotateMatrix = get2dRotateMatrix(angle);
 
         transformed.xz = rotateMatrix * transformed.xz;
@@ -152,6 +160,8 @@ window.addEventListener('resize', onWindowResize);
 //================= Animate ======================
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
+
+  customUniform.uTime.value = elapsedTime;
 
   controls.update();
   renderer.render(scene, camera);
